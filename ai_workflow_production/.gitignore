@@ -1,0 +1,20 @@
+# 민감 정보
+.env
+credentials_new.json
+token_new.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 가상환경
+venv/
+env/
