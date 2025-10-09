@@ -15,8 +15,8 @@ class GeminiServiceV2(BaseService):
         
         # Config에서 설정 가져오기
         self.api_key = os.getenv('GEMINI_API_KEY')
-        self.base_url = 'https://generativelanguage.googleapis.com/v1beta'
-        self.model = 'gemini-2.0-flash-exp'
+        self.base_url = 'https://generativelanguage.googleapis.com/v1'
+        self.model = 'gemini-2.0-flash-lite'
         
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY 환경변수가 설정되지 않았습니다")
