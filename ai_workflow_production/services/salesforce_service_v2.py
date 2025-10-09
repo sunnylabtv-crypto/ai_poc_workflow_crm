@@ -10,19 +10,22 @@ from typing import Dict, Optional
 class SalesforceServiceV2(BaseService):
     """Salesforce 서비스 (JWT Bearer Flow)"""
     
-    def __init__(self):
+     # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 이 부분을 수정하세요 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    def __init__(self, config):  # <-- 여기에 config 파라미터를 추가합니다.
         super().__init__("Salesforce")
         
-        # 환경변수에서 설정 가져오기
-        self.consumer_key = os.getenv("SF_CLIENT_ID", "").strip()
-        self.username = os.getenv("SF_USERNAME", "").strip()
-        self.login_url = os.getenv("SF_LOGIN_URL", "").strip()
-        self.key_path = os.getenv("SF_JWT_KEY", r"C:\Temp\sf_new.key").strip()
+        # 환경변수에서 설정을 가져옵니다.
+        sf_config = config['SALESFORCE_CONFIG']
+        self.consumer_key = os.getenv(sf_config['CONSUMER_KEY_ENV'])
+        self.username = os.getenv(sf_config['USERNAME_ENV'])
+        self.login_url = os.getenv("SF_LOGIN_URL")
+        self.key_path = os.getenv("SF_JWT_KEY")
         
         self.access_token = None
         self.instance_url = None
         
         self.logger.info("Salesforce 서비스 초기화")
+    # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     
     def authenticate(self) -> bool:
         """Salesforce JWT Bearer Flow로 Access Token 획득"""
