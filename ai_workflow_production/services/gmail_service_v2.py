@@ -67,14 +67,18 @@ class GmailServiceV2(BaseService):
             return False
 
     def get_recent_emails(self, minutes_ago: int = 10, max_results: int = 10) -> List[Dict]:
-        """최근 이메일 조회"""
+        """최근 이메일 조회 (자신이 보낸 이메일 제외)"""
         if not self.service:
             self.logger.error("❌ Gmail 서비스가 초기화되지 않았습니다.")
             return []
 
         def _get_emails():
             after_time = datetime.now() - timedelta(minutes=minutes_ago)
-            query = f'after:{int(after_time.timestamp())}'
+            
+            # ✅ 핵심 수정: 자신이 보낸 이메일 제외 + 받은편지함만
+            query = f'after:{int(after_time.timestamp())} -from:me in:inbox'
+            
+            self.logger.info(f"이메일 검색 쿼리: {query}")
             
             results = self.service.users().messages().list(userId='me', q=query, maxResults=max_results).execute()
             messages = results.get('messages', [])
@@ -88,6 +92,11 @@ class GmailServiceV2(BaseService):
                     sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), '')
                     subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), '')
                     
+                    # ✅ 추가 안전장치: 발신자가 자신인지 다시 한 번 체크
+                    if self.user_email and self.user_email.lower() in sender.lower():
+                        self.logger.info(f"자신이 보낸 이메일 건너뜀: {sender}")
+                        continue
+                    
                     content = ""
                     if 'parts' in email_data['payload']:
                         for part in email_data['payload']['parts']:
@@ -95,7 +104,7 @@ class GmailServiceV2(BaseService):
                                 content = base64.urlsafe_b64decode(part['body']['data']).decode('utf-8', errors='ignore')
                                 break
                     elif 'body' in email_data['payload'] and 'data' in email_data['payload']['body']:
-                         content = base64.urlsafe_b64decode(email_data['payload']['body']['data']).decode('utf-8', errors='ignore')
+                        content = base64.urlsafe_b64decode(email_data['payload']['body']['data']).decode('utf-8', errors='ignore')
 
                     emails.append({
                         'id': msg['id'], 'sender': sender, 'subject': subject, 'content': content.strip()
@@ -103,6 +112,10 @@ class GmailServiceV2(BaseService):
                 except Exception as e:
                     self.logger.warning(f"개별 이메일 파싱 실패: {e}")
                     continue
+            
+            if emails:
+                self.logger.info(f"✅ {len(emails)}개의 새 이메일 발견 (자신이 보낸 이메일 제외)")
+            
             return emails
 
         return self.execute_with_retry("최근 이메일 조회", _get_emails) or []
