@@ -22,6 +22,13 @@ class GeminiServiceV2(BaseService):
             raise ValueError("GEMINI_API_KEY 환경변수가 설정되지 않았습니다")
         
         self.logger.info(f"Gemini 서비스 초기화 - 모델: {self.model}")
+        
+      # 2. 바로 이 위치에 authenticate 메서드를 추가합니다.
+    def authenticate(self) -> bool:
+        """Gemini API 연결을 테스트하여 인증을 수행합니다."""
+        self.logger.info("Gemini 서비스 인증 시도...")
+        return self.test_connection()
+    
     
     def generate_text(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
         """
@@ -91,32 +98,41 @@ class GeminiServiceV2(BaseService):
             }
         """
         try:
+            # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 이 프롬프트를 교체하세요 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
             prompt = f"""
-다음 이메일 내용에서 고객 정보를 추출해주세요.
+Analyze the following email content to extract customer information.
+The content may include replies or forwarded messages. Ignore quoted text, previous email threads, and signatures. Focus only on the information provided in the most recent message part.
 
-이메일 내용:
+Email Content:
+---
 {email_content}
+---
 
-발신자 이메일: {sender_email}
+From the text above, extract the following fields and respond ONLY in a valid JSON format.
+If a piece of information is not found, the value should be null.
+The "email" field should default to the sender's email if not present in the body.
 
-다음 정보를 JSON 형식으로 추출하세요:
-1. name (성/이름) - 예: "성춘향"
-2. company (소속/회사) - 예: "성춘향솔루션"
-3. title (직급) - 예: "과장"
-4. phone (전화번호) - 예: "010-2222-1234"
-5. email (이메일) - 발신자 이메일을 우선 사용
+Sender's Email: {sender_email}
 
-정보가 없으면 null로 표시하세요.
+Required fields:
+1. name: Full name of the person (e.g., "성춘향")
+2. company: Company name (e.g., "춘향서비스")
+3. title: Job title (e.g., "과장")
+4. phone: Contact phone number (e.g., "010-2333-3333")
+5. email: Contact email address
 
-반드시 JSON 형식으로만 응답하세요:
+JSON response format:
 {{
-    "name": "값 또는 null",
-    "company": "값 또는 null",
-    "title": "값 또는 null",
-    "phone": "값 또는 null",
-    "email": "값 또는 null"
+    "name": "value or null",
+    "company": "value or null",
+    "title": "value or null",
+    "phone": "value or null",
+    "email": "value or null"
 }}
 """
+            # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+            # ... (이하 메서드의 나머지 코드는 그대로) ...
             
             response_text = self.generate_text(prompt, temperature=0.3)
             
