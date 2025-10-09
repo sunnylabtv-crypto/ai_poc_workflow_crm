@@ -5,8 +5,14 @@ import logging.handlers
 import sys
 from pathlib import Path
 
-def setup_logging(app_name: str = "WorkflowApp"):
-    """통합 로깅 설정"""
+def setup_logging(app_name: str = "WorkflowApp", rotation_type: str = "time"):
+    """
+    통합 로깅 설정
+    
+    Args:
+        app_name: 애플리케이션 이름
+        rotation_type: 'time' (날짜 기반) 또는 'size' (크기 기반)
+    """
     
     # 로그 디렉토리 설정
     log_dir = Path(__file__).parent.parent / "logs"
@@ -28,13 +34,27 @@ def setup_logging(app_name: str = "WorkflowApp"):
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    # 파일 핸들러 (로테이션)
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
+    # 파일 핸들러 (로테이션 타입 선택)
+    if rotation_type == "time":
+        # 날짜 기반 로테이션 (추천!)
+        file_handler = logging.handlers.TimedRotatingFileHandler(
+            log_file,
+            when='midnight',        # 매일 자정에 로테이션
+            interval=1,             # 1일마다
+            backupCount=30,         # 30일치 보관
+            encoding='utf-8'
+        )
+        # 파일명에 날짜 추가
+        file_handler.suffix = "%Y%m%d"
+    else:
+        # 크기 기반 로테이션
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=5,
+            encoding='utf-8'
+        )
+    
     file_handler.setLevel(log_level)
     file_handler.setFormatter(formatter)
     
@@ -50,6 +70,16 @@ def setup_logging(app_name: str = "WorkflowApp"):
     
     # 앱 로거 반환
     app_logger = logging.getLogger(app_name)
-    app_logger.info(f"{app_name} 로깅 초기화 완료")
+    app_logger.info("=" * 60)
+    app_logger.info(f"{app_name} 로깅 시스템 초기화 완료")
+    app_logger.info(f"로그 디렉토리: {log_dir}")
+    app_logger.info(f"로테이션 타입: {rotation_type}")
+    if rotation_type == "time":
+        app_logger.info("로테이션 주기: 매일 자정")
+        app_logger.info("보관 기간: 30일")
+    else:
+        app_logger.info("파일 크기 제한: 10MB")
+        app_logger.info("보관 파일 수: 5개")
+    app_logger.info("=" * 60)
     
     return app_logger
