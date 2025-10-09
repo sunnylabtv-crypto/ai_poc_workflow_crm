@@ -5,27 +5,11 @@ import sys
 from pathlib import Path
 
 # 프로젝트 루트를 Python 경로에 추가
-# 이 부분이 core 폴더를 찾을 수 있게 해줍니다.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import logging
-# ❌ 자체 WorkflowEngine 대신 core의 엔진을 가져옵니다.
+# ✅ logger_config 임포트 추가
+from ai_workflow_production.utils.logger_config import setup_logging
 from ai_workflow_production.core.workflow_engine import WorkflowEngine
-
-# 로깅 설정 (기존과 동일)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/workflow.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
-
-# ❌ main.py 내부에 있던 자체 WorkflowEngine 클래스는 전부 삭제합니다.
-
 
 def main():
     """메인 함수"""
@@ -33,7 +17,7 @@ def main():
     parser.add_argument(
         '--mode',
         choices=['single', 'monitor', 'health'],
-        default='monitor',  # 기본값을 monitor로 변경하면 편합니다.
+        default='monitor',
         help='실행 모드: single(단일 실행), monitor(모니터링), health(헬스 체크)'
     )
     parser.add_argument(
@@ -42,10 +26,26 @@ def main():
         default='development',
         help='환경 설정: development 또는 production'
     )
+    parser.add_argument(
+        '--log-rotation',
+        choices=['time', 'size'],
+        default='time',
+        help='로그 로테이션 타입: time(날짜 기반) 또는 size(크기 기반)'
+    )
 
     args = parser.parse_args()
 
-    # 이제 이 engine은 core/workflow_engine.py의 강력한 엔진입니다.
+    # ✅ 로깅 설정 (logger_config.py 사용)
+    logger = setup_logging(
+        app_name="ai_workflow_production",
+        rotation_type=args.log_rotation
+    )
+    
+    logger.info(f"실행 모드: {args.mode}")
+    logger.info(f"환경: {args.env}")
+    logger.info(f"로그 로테이션: {args.log_rotation}")
+
+    # 워크플로우 엔진 시작
     engine = WorkflowEngine(environment=args.env)
 
     # 모드에 따라 실행
