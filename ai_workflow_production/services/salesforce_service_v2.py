@@ -100,6 +100,8 @@ class SalesforceServiceV2(BaseService):
             return False
         
         try:
+            import re
+            
             # 이름 분리 (성/이름)
             name = customer_info.get('name', '')
             if name:
@@ -114,6 +116,16 @@ class SalesforceServiceV2(BaseService):
                 last_name = 'Unknown'
                 first_name = ''
             
+            # 이메일 정리 (이름 제거)
+            email = customer_info.get('email', '')
+            if email:
+                # "Name <email@domain.com>" 형식에서 이메일만 추출
+                email_match = re.search(r'<(.+?)>', email)
+                if email_match:
+                    email = email_match.group(1)
+                # 공백 제거
+                email = email.strip()
+            
             # Lead 데이터 구성
             lead_data = {
                 "LastName": last_name,
@@ -121,7 +133,7 @@ class SalesforceServiceV2(BaseService):
                 "Company": customer_info.get('company', 'Unknown'),
                 "Title": customer_info.get('title', ''),
                 "Phone": customer_info.get('phone', ''),
-                "Email": customer_info.get('email', ''),
+                "Email": email,
                 "LeadSource": "Email Inquiry",
                 "Status": "Open - Not Contacted",
                 "Description": "자동 이메일 워크플로우를 통해 생성된 Lead"
@@ -136,6 +148,7 @@ class SalesforceServiceV2(BaseService):
             }
             
             self.logger.info(f"Lead 생성 요청: {lead_data['FirstName']} {lead_data['LastName']} ({lead_data['Company']})")
+            self.logger.info(f"   이메일: {lead_data['Email']}")
             
             response = requests.post(lead_url, headers=headers, json=lead_data)
             
@@ -151,7 +164,7 @@ class SalesforceServiceV2(BaseService):
                 self.logger.error(f"Lead 생성 실패: {response.status_code}")
                 self.logger.error(f"   응답: {response.text}")
                 return False
-                
+            
         except Exception as e:
             self.logger.error(f"Lead 생성 중 오류: {e}")
             return False
