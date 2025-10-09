@@ -283,7 +283,7 @@ JSON response format:
             data = {
                 "contents": [{
                     "parts": [{
-                        "text": "안녕하세요! 간단한 인사말로 답변해주세요."
+                        "text": "Hello"  # ← 짧게 변경
                     }]
                 }]
             }
@@ -292,7 +292,7 @@ JSON response format:
                 f"{url}?key={self.api_key}",
                 headers=headers,
                 json=data,
-                timeout=30
+                timeout=10  # ← 30에서 10으로 단축
             )
             
             if response.status_code == 200:
@@ -302,8 +302,16 @@ JSON response format:
                     return True
             
             self.logger.error(f"Gemini API 연결 테스트 실패: {response.status_code}")
+            
+            # ← 503 에러에 대한 추가 로깅
+            if response.status_code == 503:
+                self.logger.warning("⚠️ 503 에러: Google API 서버 일시적 문제 - 잠시 후 재시도하세요")
+            
             return False
                 
+        except requests.exceptions.Timeout:  # ← 타임아웃 예외 추가
+            self.logger.error("Gemini API 테스트 타임아웃")
+            return False
         except Exception as e:
             self.logger.error(f"Gemini API 테스트 실패: {e}")
             return False
