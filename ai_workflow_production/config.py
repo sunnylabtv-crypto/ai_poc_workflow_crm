@@ -36,7 +36,7 @@ GMAIL_CONFIG = {
 # Gemini API 설정
 GEMINI_CONFIG = {
     'API_KEY_ENV': 'GEMINI_API_KEY',
-    'MODEL': 'gemini-2.0-flash-lite',
+    'MODEL': 'gemini-2.5-flash-lite',
     'BASE_URL': 'https://generativelanguage.googleapis.com/v1',
     'MAX_TOKENS': 2048,
     'TEMPERATURE': 0.7
