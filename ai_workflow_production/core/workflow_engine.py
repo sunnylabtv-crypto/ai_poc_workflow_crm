@@ -1,17 +1,20 @@
-# core/workflow_engine.py - 워크플로우 엔진 (수정 완료)
+# core/workflow_engine.py - 워크플로우 엔진 (OpenAI 버전)
 
 import logging
 import time
 from typing import Dict, List, Optional
 from datetime import datetime
 
-# config.py의 함수를 직접 사용합니다.
 from ai_workflow_production import config
-
-# 각 v2 서비스들을 가져옵니다.
 from ai_workflow_production.services.service_manager import ServiceManager
 from ai_workflow_production.services.gmail_service_v2 import GmailServiceV2
-from ai_workflow_production.services.gemini_service_v2 import GeminiServiceV2
+
+# ========================================
+# 🔄 변경 1: Gemini 대신 OpenAI import
+# ========================================
+# from ai_workflow_production.services.gemini_service_v2 import GeminiServiceV2
+from ai_workflow_production.services.openai_service_v2 import OpenAIServiceV2
+
 from ai_workflow_production.services.salesforce_service_v2 import SalesforceServiceV2
 
 class WorkflowEngine:
@@ -20,13 +23,11 @@ class WorkflowEngine:
     def __init__(self, environment='development'):
         self.logger = logging.getLogger(__name__)
         self.environment = environment
-        # config.py의 함수를 사용해 설정을 로드합니다.
         self.config = config.load_environment_config(environment)
         
         self.service_manager = ServiceManager()
         self.processed_emails = set()
         
-        # 서비스 설정 메서드를 호출합니다.
         self._setup_services()
         
         self.logger.info(f"워크플로우 엔진 초기화 - 환경: {environment}")
@@ -36,18 +37,17 @@ class WorkflowEngine:
         self.logger.info("서비스 등록 중...")
         
         try:
-            # ========================================================== #
-            # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 핵심 수정 사항 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ #
-            # 각 서비스 생성자에 self.config 객체를 전달합니다.
-            # 이제 각 서비스는 필요한 모든 설정 정보를 갖고 시작합니다.
-            # ========================================================== #
+            # ========================================
+            # 🔄 변경 2: Gemini 대신 OpenAI 서비스 등록
+            # ========================================
             self.service_manager.register_service("gmail", GmailServiceV2(self.config))
-            self.service_manager.register_service("gemini", GeminiServiceV2(self.config))
+            # self.service_manager.register_service("gemini", GeminiServiceV2(self.config))
+            self.service_manager.register_service("ai", OpenAIServiceV2(self.config))
             self.service_manager.register_service("salesforce", SalesforceServiceV2(self.config))
             
         except Exception as e:
             self.logger.error(f"서비스 등록 실패: {e}", exc_info=True)
-            raise  # 등록 실패 시 엔진을 멈추도록 예외를 다시 발생시킵니다.
+            raise
 
     def initialize(self) -> bool:
         """워크플로우 엔진 초기화"""
@@ -120,7 +120,7 @@ class WorkflowEngine:
         self.logger.info(f"📋 제목: {subject}")
         
         try:
-            # Level 1: Gemini를 이용한 정보 추출 및 답장 생성/발송
+            # Level 1: AI를 이용한 정보 추출 및 답장 생성/발송
             level1_result = self._execute_level1_workflow(sender, subject, content, email.get('id'))
             customer_info = level1_result.get('customer_info')
             
@@ -140,14 +140,18 @@ class WorkflowEngine:
     def _execute_level1_workflow(self, sender: str, subject: str, content: str, email_id: str) -> Dict:
         """Level 1: 자동 답장 (고객 정보 추출 포함)"""
         self.logger.info("\n🔷 Level 1: 답장 처리 시작")
-        gemini_service = self.service_manager.get_service("gemini")
+        
+        # ========================================
+        # 🔄 변경 3: "gemini" 대신 "ai" 서비스 사용
+        # ========================================
+        ai_service = self.service_manager.get_service("ai")
         gmail_service = self.service_manager.get_service("gmail")
         
         # 1. 고객 정보 추출
-        customer_info = gemini_service.extract_customer_info(content, sender)
+        customer_info = ai_service.extract_customer_info(content, sender)
         
         # 2. 답변 생성
-        reply = gemini_service.generate_reply(customer_info, subject)
+        reply = ai_service.generate_reply(customer_info, subject)
         
         # 3. 답장 발송
         reply_sent = gmail_service.send_reply(
@@ -178,8 +182,19 @@ class WorkflowEngine:
             
         return lead_created
 
-    # run_single, run_monitor, health_check 메서드는 기존과 동일하게 유지합니다.
-    # (코드가 길어 생략)
+    def run_single(self):
+        """단일 실행 모드"""
+        self.logger.info("\n" + "=" * 60)
+        self.logger.info("단일 실행 모드")
+        self.logger.info("=" * 60)
+        
+        if not self.initialize():
+            self.logger.error("초기화 실패")
+            return
+        
+        self.process_new_emails()
+        self.logger.info("\n✅ 단일 실행 완료")
+
     def run_monitor(self):
         """모니터링 모드 (지속 실행)"""
         self.logger.info("\n" + "=" * 60)
@@ -202,3 +217,17 @@ class WorkflowEngine:
                 time.sleep(interval)
         except KeyboardInterrupt:
             self.logger.info("\n\n⏹️  모니터링 중단")
+
+    def health_check(self):
+        """헬스 체크"""
+        self.logger.info("\n" + "=" * 60)
+        self.logger.info("헬스 체크")
+        self.logger.info("=" * 60)
+        
+        health_status = self.service_manager.health_check()
+        
+        for service_name, status in health_status.items():
+            status_symbol = "✅" if status else "❌"
+            self.logger.info(f"{status_symbol} {service_name}: {'정상' if status else '비정상'}")
+        
+        self.logger.info("=" * 60)
