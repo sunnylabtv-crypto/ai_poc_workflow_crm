@@ -23,7 +23,7 @@ def test_gemini_api():
     print(f"✓ API Key 발견: {api_key[:20]}...")
     
     # API 엔드포인트
-    model = "gemini-2.0-flash-lite"
+    model = "gemini-2.5-flash-lite"
     base_url = "https://generativelanguage.googleapis.com/v1"
     url = f"{base_url}/models/{model}:generateContent"
     
